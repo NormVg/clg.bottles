@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, toRef } from 'vue'
 import { useToast } from '../composables/useToast'
+import { useHoverPreview } from '../composables/useHoverPreview'
 import type { ApiFolder, ApiItem } from '../types'
 import RowEditor from './RowEditor.vue'
 import UiIcon from './ui/UiIcon.vue'
@@ -22,6 +23,10 @@ const { push } = useToast()
 const expanded = ref(false)
 const editing = ref(false)
 const confirming = ref(false)
+
+const { setPreview, source, isVideo, onEnter, onMove, onLeave, hide } = useHoverPreview(
+  toRef(props, 'item'),
+)
 
 function startEdit() {
   confirming.value = false
@@ -111,7 +116,13 @@ function downloadMedia() {
         <div class="row__note-body">{{ item.note }}</div>
       </div>
 
-      <div v-else class="row__inner">
+      <div
+        v-else
+        class="row__inner"
+        @mouseenter="onEnter"
+        @mousemove="onMove"
+        @mouseleave="onLeave"
+      >
         <button
           v-if="item.type === 'media'"
           class="row__hit"
@@ -167,6 +178,33 @@ function downloadMedia() {
         </div>
       </div>
     </template>
+
+    <Teleport to="body">
+      <div
+        v-if="item && (item.type === 'link' || item.type === 'media')"
+        :ref="setPreview"
+        class="media-preview"
+        aria-hidden="true"
+      >
+        <video
+          v-if="isVideo"
+          class="media-preview__media"
+          :src="source ?? undefined"
+          muted
+          loop
+          autoplay
+          playsinline
+          @error="hide"
+        />
+        <img
+          v-else
+          class="media-preview__media"
+          :src="source ?? undefined"
+          alt=""
+          @error="hide"
+        />
+      </div>
+    </Teleport>
   </li>
 </template>
 

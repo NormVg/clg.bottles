@@ -173,3 +173,28 @@
     transition: none;
   }
 }
+
+/* the floating hover thumbnail — cursor-following, transform only */
+.media-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 58;
+  transition: opacity 120ms var(--ease-out);
+  will-change: transform;
+}
+
+.media-preview__media {
+  display: block;
+  width: 100%;
+  max-height: 170px;
+  object-fit: cover;
+}

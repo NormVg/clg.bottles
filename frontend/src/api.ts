@@ -119,4 +119,8 @@ export const api = {
   search(q: string): Promise<ApiSearchResult> {
     return request(`/search?q=${encodeURIComponent(q)}`)
   },
+
+  getLinkPreview(id: number): Promise<{ title: string | null; image: string | null }> {
+    return request(`/items/${id}/preview`)
+  },
 }

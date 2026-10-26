@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from ...utils.db import get_connection
 from ..auth.routes import get_current_user
+from .preview import resolve_page_preview
 from .service import BookmarkService
 
 router = APIRouter(prefix="/api")
@@ -127,6 +128,17 @@ def delete_item(
         service.delete_item(user["id"], item_id)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
+
+@router.get("/items/{item_id}/preview")
+def get_item_preview(
+    item_id: int,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
+    item = service.get_item(user["id"], item_id)
+    if item is None or item["type"] != "link" or not item["url"]:
+        raise HTTPException(status_code=404, detail="no such link.")
+    return resolve_page_preview(item["url"])
 
 @router.post("/media", status_code=201)
 def upload_media(

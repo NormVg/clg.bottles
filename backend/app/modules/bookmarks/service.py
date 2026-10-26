@@ -134,6 +134,9 @@ class BookmarkService:
         if item["media_id"]:
             self.media.delete(user_id, item["media_id"])
 
+    def get_item(self, user_id: int, item_id: int):
+        return self.items.find_by_id(user_id, item_id)
+
     def upload_media(
         self,
         user_id: int,

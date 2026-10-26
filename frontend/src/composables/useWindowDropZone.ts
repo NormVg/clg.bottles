@@ -13,18 +13,22 @@ export function useWindowDropZone(
   let depth = 0
 
   function hasFiles(event: DragEvent): boolean {
-    return [...(event.dataTransfer?.types ?? [])].includes('Files')
+    const types = [...(event.dataTransfer?.types ?? [])]
+    // Safari can report an empty type list during the first dragenter
+    return types.includes('Files') || types.length === 0
   }
 
   function onDragEnter(event: DragEvent) {
-    if (!enabled.value || !hasFiles(event)) return
+    if (!enabled.value) return
     event.preventDefault()
+    if (!hasFiles(event)) return
     depth += 1
     dragging.value = true
   }
 
   function onDragOver(event: DragEvent) {
-    if (!enabled.value || !hasFiles(event)) return
+    if (!enabled.value) return
+    // always allow the drop — the browser must never open the file
     event.preventDefault()
   }
 
@@ -36,12 +40,12 @@ export function useWindowDropZone(
 
   function onDrop(event: DragEvent) {
     if (!enabled.value) return
+    event.preventDefault()
     depth = 0
     dragging.value = false
 
     const files = [...(event.dataTransfer?.files ?? [])]
     if (files.length === 0) return
-    event.preventDefault()
     onFiles(files)
   }
 

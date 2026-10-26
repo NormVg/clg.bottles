@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paper-design/shaders": "^0.0.82",
     "vue": "^3.5.44"
   },
   "devDependencies": {

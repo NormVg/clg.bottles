@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useGemTheme } from '../composables/useGemTheme'
 import { useTheme } from '../composables/useTheme'
 import UiButton from './ui/UiButton.vue'
+import UiDither from './ui/UiDither.vue'
+import UiGem from './ui/UiGem.vue'
 import UiIcon from './ui/UiIcon.vue'
 
 const emit = defineEmits<{
@@ -8,10 +12,27 @@ const emit = defineEmits<{
 }>()
 
 const { theme, toggle } = useTheme()
+const { gemColors, gemBack, gemInner, gemSpeed } = useGemTheme()
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const ditherFront = computed(() => (theme.value === 'dark' ? '#f2f2f01c' : '#1a1a1a22'))
+const ditherSpeed = reducedMotion ? 0 : 0.35
 </script>
 
 <template>
   <div class="landing">
+    <div class="landing__texture" aria-hidden="true">
+      <UiDither
+        color-back="#00000000"
+        :color-front="ditherFront"
+        shape="simplex"
+        type="4x4"
+        :size="2"
+        :speed="ditherSpeed"
+      />
+    </div>
+    <div class="landing__glow" aria-hidden="true" />
+
     <header class="landing__bar">
       <span class="landing__word">
         <img class="landing__word-mark" src="/logo-nobg.svg" alt="" width="12" height="30" />
@@ -31,8 +52,16 @@ const { theme, toggle } = useTheme()
     </header>
 
     <main class="landing__hero">
-      <div class="landing__mark rise" style="--i: 0" aria-hidden="true">
-        <img src="/logo-nobg.svg" alt="" width="24" height="60" />
+      <div class="landing__gem rise" style="--i: 0" aria-hidden="true">
+        <UiGem
+          image="/logo-nobg.svg"
+          :colors="gemColors"
+          :color-back="gemBack"
+          :color-inner="gemInner"
+          :speed="gemSpeed"
+          :scale="0.6"
+          :outer-glow="0"
+        />
       </div>
       <p class="landing__eyebrow label rise" style="--i: 1">bookmarks, filed properly</p>
       <h1 class="landing__title rise" style="--i: 2">
@@ -69,7 +98,28 @@ const { theme, toggle } = useTheme()
 </template>
 
 <style scoped>
-.landing { min-height: 100dvh; display: flex; flex-direction: column; padding: 0 24px; }
+.landing { position: relative; min-height: 100dvh; display: flex; flex-direction: column; padding: 0 24px; }
+.landing__texture {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  mask-image: radial-gradient(ellipse 720px 460px at 50% 44%, transparent 0 48%, #000 100%),
+    radial-gradient(circle 150px at 36px 40px, transparent 0 55%, #000 100%),
+    radial-gradient(circle 150px at calc(100% - 40px) 42px, transparent 0 55%, #000 100%),
+    radial-gradient(circle 140px at 40px calc(100% - 46px), transparent 0 55%, #000 100%);
+  mask-composite: intersect;
+  -webkit-mask-image: radial-gradient(ellipse 720px 460px at 50% 44%, transparent 0 48%, #000 100%),
+    radial-gradient(circle 150px at 36px 40px, transparent 0 55%, #000 100%),
+    radial-gradient(circle 150px at calc(100% - 40px) 42px, transparent 0 55%, #000 100%),
+    radial-gradient(circle 140px at 40px calc(100% - 46px), transparent 0 55%, #000 100%);
+  -webkit-mask-composite: source-in;
+}
+.landing__glow {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 600px 420px at 50% 38%, rgba(0, 0, 0, 0.035), transparent 70%);
+}
+html[data-theme='dark'] .landing__glow {
+  background: radial-gradient(ellipse 600px 420px at 50% 38%, rgba(255, 255, 255, 0.04), transparent 70%);
+}
+.landing__bar, .landing__hero, .landing__features, .landing__foot { position: relative; z-index: 1; }
 .landing__bar { display: flex; align-items: center; justify-content: space-between; padding: 28px 0; }
 .landing__word { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink); letter-spacing: 0.06em; }
 .landing__word-mark { display: block; width: auto; height: 30px; }
@@ -91,7 +141,7 @@ const { theme, toggle } = useTheme()
   justify-content: center; text-align: center; gap: 18px;
   padding: clamp(48px, 10vh, 120px) 0;
 }
-.landing__mark img { display: block; width: auto; height: 60px; opacity: 0.9; }
+.landing__gem { width: 300px; height: 160px; margin-bottom: 4px; }
 .landing__eyebrow { font-size: var(--text-xs); color: var(--ink-tertiary); letter-spacing: 0.14em; }
 .landing__title {
   font-size: clamp(30px, 5vw, 44px); font-weight: 400; letter-spacing: -0.02em;

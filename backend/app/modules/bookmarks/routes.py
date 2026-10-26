@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from pydantic import BaseModel
 
 from ...utils.db import get_connection
+from ..auth.routes import get_current_user
 from .service import BookmarkService
 
 router = APIRouter(prefix="/api")
@@ -40,32 +41,46 @@ def get_service():
 
 
 @router.get("/fs")
-def list_directory(path: str = "/", service: BookmarkService = Depends(get_service)):
+def list_directory(
+    path: str = "/",
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        return service.list_directory(path)
+        return service.list_directory(user["id"], path)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
 
 @router.get("/folders")
-def list_folders(service: BookmarkService = Depends(get_service)):
-    return service.list_folders()
+def list_folders(
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
+    return service.list_folders(user["id"])
 
 
 @router.post("/folders", status_code=201)
-def create_folder(input: FolderInput, service: BookmarkService = Depends(get_service)):
+def create_folder(
+    input: FolderInput,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        return service.create_folder(input.path)
+        return service.create_folder(user["id"], input.path)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
 
 @router.patch("/folders/{folder_id}")
 def rename_folder(
-    folder_id: int, input: FolderUpdate, service: BookmarkService = Depends(get_service)
+    folder_id: int,
+    input: FolderUpdate,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
 ):
     try:
-        return service.rename_folder(folder_id, input.name)
+        return service.rename_folder(user["id"], folder_id, input.name)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
     except ValueError as error:
@@ -73,35 +88,52 @@ def rename_folder(
 
 
 @router.delete("/folders/{folder_id}", status_code=204)
-def delete_folder(folder_id: int, service: BookmarkService = Depends(get_service)):
+def delete_folder(
+    folder_id: int,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        service.delete_folder(folder_id)
+        service.delete_folder(user["id"], folder_id)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
 
 @router.post("/items", status_code=201)
-def create_item(input: ItemInput, service: BookmarkService = Depends(get_service)):
+def create_item(
+    input: ItemInput,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        return service.create_item(input.type, input.title, input.url, input.note, input.path)
+        return service.create_item(
+            user["id"], input.type, input.title, input.url, input.note, input.path
+        )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
 
 @router.patch("/items/{item_id}")
 def update_item(
-    item_id: int, input: ItemUpdate, service: BookmarkService = Depends(get_service)
+    item_id: int,
+    input: ItemUpdate,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
 ):
     try:
-        return service.update_item(item_id, input.title, input.url, input.note)
+        return service.update_item(user["id"], item_id, input.title, input.url, input.note)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
 
 @router.delete("/items/{item_id}", status_code=204)
-def delete_item(item_id: int, service: BookmarkService = Depends(get_service)):
+def delete_item(
+    item_id: int,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        service.delete_item(item_id)
+        service.delete_item(user["id"], item_id)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
@@ -111,38 +143,51 @@ def upload_media(
     file: UploadFile = File(...),
     path: str = Form("/"),
     title: str = Form(""),
+    user: dict = Depends(get_current_user),
     service: BookmarkService = Depends(get_service),
 ):
     data = file.file.read()
     try:
         return service.upload_media(
-            file.filename or "file", file.content_type or "", data, path, title
+            user["id"], file.filename or "file", file.content_type or "", data, path, title
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
 
 @router.get("/media/{media_id}")
-def get_media(media_id: int, service: BookmarkService = Depends(get_service)):
+def get_media(
+    media_id: int,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        return service.get_media(media_id)
+        return service.get_media(user["id"], media_id)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
 
 @router.get("/media/{media_id}/raw")
-def get_media_raw(media_id: int, service: BookmarkService = Depends(get_service)):
+def get_media_raw(
+    media_id: int,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        row = service.get_media_row(media_id)
+        row = service.get_media_row(user["id"], media_id)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
     return Response(content=bytes(row["data"]), media_type=row["mime_type"])
 
 
 @router.get("/media/{media_id}/download")
-def download_media(media_id: int, service: BookmarkService = Depends(get_service)):
+def download_media(
+    media_id: int,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     try:
-        row = service.get_media_row(media_id)
+        row = service.get_media_row(user["id"], media_id)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
     return Response(
@@ -153,7 +198,11 @@ def download_media(media_id: int, service: BookmarkService = Depends(get_service
 
 
 @router.get("/search")
-def search(q: str, service: BookmarkService = Depends(get_service)):
+def search(
+    q: str,
+    user: dict = Depends(get_current_user),
+    service: BookmarkService = Depends(get_service),
+):
     if not q.strip():
         return {"folders": [], "items": []}
-    return service.search(q.strip())
+    return service.search(user["id"], q.strip())

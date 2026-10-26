@@ -1,23 +1,9 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.utils.db import get_connection
-
-client = TestClient(app)
 
 
-@pytest.fixture(autouse=True)
-def clean_database():
-    connection = get_connection()
-    connection.execute("DELETE FROM items")
-    connection.execute("DELETE FROM folders")
-    connection.execute("DELETE FROM media")
-    connection.commit()
-    connection.close()
-
-
-def test_create_folder_creates_missing_parents():
+def test_create_folder_creates_missing_parents(client):
     response = client.post("/api/folders", json={"path": "/Design/Inspo"})
 
     assert response.status_code == 201
@@ -27,7 +13,7 @@ def test_create_folder_creates_missing_parents():
     assert [folder["name"] for folder in listing["folders"]] == ["inspo"]
 
 
-def test_create_link_uses_hostname_as_default_title():
+def test_create_link_uses_hostname_as_default_title(client):
     client.post("/api/folders", json={"path": "/design"})
 
     response = client.post(
@@ -41,7 +27,7 @@ def test_create_link_uses_hostname_as_default_title():
     assert len(listing["items"]) == 1
 
 
-def test_rename_folder_moves_its_subtree():
+def test_rename_folder_moves_its_subtree(client):
     client.post("/api/folders", json={"path": "/design/inspo"})
     folder = client.get("/api/fs").json()["folders"][0]
 
@@ -53,7 +39,7 @@ def test_rename_folder_moves_its_subtree():
     assert [child["name"] for child in listing["folders"]] == ["inspo"]
 
 
-def test_delete_folder_removes_its_items():
+def test_delete_folder_removes_its_items(client):
     client.post("/api/folders", json={"path": "/design"})
     client.post(
         "/api/items",
@@ -67,7 +53,7 @@ def test_delete_folder_removes_its_items():
     assert client.get("/api/fs", params={"path": "/design"}).status_code == 404
 
 
-def test_search_finds_items_and_folders():
+def test_search_finds_items_and_folders(client):
     client.post("/api/folders", json={"path": "/design"})
     client.post(
         "/api/items",
@@ -81,7 +67,7 @@ def test_search_finds_items_and_folders():
     assert [folder["path"] for folder in folder_results["folders"]] == ["/design"]
 
 
-def test_create_note_keeps_title_and_body():
+def test_create_note_keeps_title_and_body(client):
     response = client.post(
         "/api/items",
         json={"type": "note", "title": "idea", "note": "the text to keep"},
@@ -97,7 +83,7 @@ def test_create_note_keeps_title_and_body():
     assert listing["items"][0]["note"] == "the text to keep"
 
 
-def test_update_and_delete_item():
+def test_update_and_delete_item(client):
     created = client.post(
         "/api/items", json={"type": "note", "title": "idea", "note": "hello"}
     ).json()
@@ -108,3 +94,16 @@ def test_update_and_delete_item():
 
     assert client.delete(f"/api/items/{created['id']}").status_code == 204
     assert client.get("/api/fs").json()["items"] == []
+
+
+def test_users_only_see_their_own_bookmarks(client):
+    client.post("/api/items", json={"type": "note", "title": "mine", "note": "secret"})
+
+    other = TestClient(app)
+    other.post(
+        "/api/auth/signup",
+        json={"name": "Other", "email": "other@example.com", "password": "secret123"},
+    )
+
+    assert other.get("/api/fs").json()["items"] == []
+    assert client.get("/api/fs").json()["items"][0]["title"] == "mine"

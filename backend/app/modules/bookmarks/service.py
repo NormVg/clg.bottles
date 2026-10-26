@@ -13,23 +13,26 @@ class BookmarkService:
         self.items = ItemRepository(connection)
         self.media = MediaRepository(connection)
 
-    def list_directory(self, path: str) -> dict:
+    def list_directory(self, user_id: int, path: str) -> dict:
         canonical = normalize_folder_path(path) or "/"
-        folder = None if canonical == "/" else self.folders.find_by_path(canonical)
+        folder = None if canonical == "/" else self.folders.find_by_path(user_id, canonical)
         if canonical != "/" and folder is None:
             raise LookupError(f"no folder at {canonical}.")
         folder_id = folder["id"] if folder else None
         return {
             "path": canonical,
             "folder": dict(folder) if folder else None,
-            "folders": [dict(row) for row in self.folders.list_children(folder_id)],
-            "items": [self._item_dict(row) for row in self.items.list_by_folder(folder_id)],
+            "folders": [dict(row) for row in self.folders.list_children(user_id, folder_id)],
+            "items": [
+                self._item_dict(user_id, row)
+                for row in self.items.list_by_folder(user_id, folder_id)
+            ],
         }
 
-    def list_folders(self) -> list[dict]:
-        return [dict(row) for row in self.folders.list_all()]
+    def list_folders(self, user_id: int) -> list[dict]:
+        return [dict(row) for row in self.folders.list_all(user_id)]
 
-    def ensure_folder_path(self, path: str):
+    def ensure_folder_path(self, user_id: int, path: str):
         """mkdir -p: create every missing segment and return the leaf folder."""
         canonical = normalize_folder_path(path)
         if canonical is None:
@@ -41,23 +44,23 @@ class BookmarkService:
         leaf = None
         for segment in canonical.strip("/").split("/"):
             current = f"{current}/{segment}"
-            folder = self.folders.find_by_path(current)
+            folder = self.folders.find_by_path(user_id, current)
             if folder is None:
-                folder = self.folders.create(parent_id, segment, current)
+                folder = self.folders.create(user_id, parent_id, segment, current)
             parent_id = folder["id"]
             leaf = folder
         return leaf
 
-    def create_folder(self, path: str) -> dict:
+    def create_folder(self, user_id: int, path: str) -> dict:
         canonical = normalize_folder_path(path)
         if canonical is None:
             raise ValueError("that path is too deep.")
         if canonical == "/":
             raise ValueError("the root folder already exists.")
-        return dict(self.ensure_folder_path(canonical))
+        return dict(self.ensure_folder_path(user_id, canonical))
 
-    def rename_folder(self, folder_id: int, name: str) -> dict:
-        folder = self.folders.find_by_id(folder_id)
+    def rename_folder(self, user_id: int, folder_id: int, name: str) -> dict:
+        folder = self.folders.find_by_id(user_id, folder_id)
         if folder is None:
             raise LookupError("no such folder.")
         slug = slugify_segment(name)
@@ -66,19 +69,20 @@ class BookmarkService:
         parent = parent_path_of(folder["path"])
         new_path = f"/{slug}" if parent == "/" else f"{parent}/{slug}"
         if new_path != folder["path"]:
-            sibling = self.folders.find_by_path(new_path)
+            sibling = self.folders.find_by_path(user_id, new_path)
             if sibling is not None and sibling["id"] != folder_id:
                 raise ValueError("a folder with that name already exists here.")
-            self.folders.update_path_prefix(folder["path"], new_path)
-        return dict(self.folders.update(folder_id, name.strip()[:64], new_path))
+            self.folders.update_path_prefix(user_id, folder["path"], new_path)
+        return dict(self.folders.update(user_id, folder_id, name.strip()[:64], new_path))
 
-    def delete_folder(self, folder_id: int) -> None:
-        if self.folders.find_by_id(folder_id) is None:
+    def delete_folder(self, user_id: int, folder_id: int) -> None:
+        if self.folders.find_by_id(user_id, folder_id) is None:
             raise LookupError("no such folder.")
-        self.folders.delete(folder_id)
+        self.folders.delete(user_id, folder_id)
 
     def create_item(
         self,
+        user_id: int,
         item_type: str,
         title: str | None,
         url: str | None,
@@ -94,35 +98,44 @@ class BookmarkService:
             raise ValueError("note items require a note.")
         if item_type == "media" and media_id is None:
             raise ValueError("media items require a media id.")
-        folder = self.ensure_folder_path(path or "/")
+        folder = self.ensure_folder_path(user_id, path or "/")
         folder_id = folder["id"] if folder else None
         final_title = (title or "").strip()
         if not final_title:
             final_title = default_title_for(url) if item_type == "link" else "untitled"
-        row = self.items.create(folder_id, item_type, final_title[:256], url, note, media_id)
-        return self._item_dict(row)
+        row = self.items.create(
+            user_id, folder_id, item_type, final_title[:256], url, note, media_id
+        )
+        return self._item_dict(user_id, row)
 
     def update_item(
-        self, item_id: int, title: str | None, url: str | None, note: str | None
+        self,
+        user_id: int,
+        item_id: int,
+        title: str | None,
+        url: str | None,
+        note: str | None,
     ) -> dict:
-        item = self.items.find_by_id(item_id)
+        item = self.items.find_by_id(user_id, item_id)
         if item is None:
             raise LookupError("no such item.")
         new_title = title.strip()[:256] if title and title.strip() else item["title"]
         new_url = url if url is not None else item["url"]
         new_note = note if note is not None else item["note"]
-        return self._item_dict(self.items.update(item_id, new_title, new_url, new_note))
+        row = self.items.update(user_id, item_id, new_title, new_url, new_note)
+        return self._item_dict(user_id, row)
 
-    def delete_item(self, item_id: int) -> None:
-        item = self.items.find_by_id(item_id)
+    def delete_item(self, user_id: int, item_id: int) -> None:
+        item = self.items.find_by_id(user_id, item_id)
         if item is None:
             raise LookupError("no such item.")
-        self.items.delete(item_id)
+        self.items.delete(user_id, item_id)
         if item["media_id"]:
-            self.media.delete(item["media_id"])
+            self.media.delete(user_id, item["media_id"])
 
     def upload_media(
         self,
+        user_id: int,
         filename: str,
         mime_type: str,
         data: bytes,
@@ -136,34 +149,39 @@ class BookmarkService:
             raise ValueError("files up to 25 mb are supported.")
         clean_name = sanitize_filename(filename)
         media = self.media.create(
-            clean_name, mime_type or "application/octet-stream", len(data), data
+            user_id, clean_name, mime_type or "application/octet-stream", len(data), data
         )
-        item = self.create_item("media", title or clean_name, None, None, path, media["id"])
+        item = self.create_item(
+            user_id, "media", title or clean_name, None, None, path, media["id"]
+        )
         return {"media": self._media_dict(media), "item": item}
 
-    def get_media(self, media_id: int) -> dict:
-        row = self.media.find_by_id(media_id)
+    def get_media(self, user_id: int, media_id: int) -> dict:
+        row = self.media.find_by_id(user_id, media_id)
         if row is None:
             raise LookupError("no such media.")
         return self._media_dict(row)
 
-    def get_media_row(self, media_id: int):
-        row = self.media.find_by_id(media_id)
+    def get_media_row(self, user_id: int, media_id: int):
+        row = self.media.find_by_id(user_id, media_id)
         if row is None:
             raise LookupError("no such media.")
         return row
 
-    def search(self, query: str) -> dict:
+    def search(self, user_id: int, query: str) -> dict:
         return {
-            "folders": [dict(row) for row in self.folders.search(query)],
-            "items": [self._item_dict(row) for row in self.items.search(query)],
+            "folders": [dict(row) for row in self.folders.search(user_id, query)],
+            "items": [
+                self._item_dict(user_id, row)
+                for row in self.items.search(user_id, query)
+            ],
         }
 
-    def _item_dict(self, row) -> dict:
+    def _item_dict(self, user_id: int, row) -> dict:
         item = dict(row)
         item["media"] = None
         if row["media_id"]:
-            media = self.media.find_by_id(row["media_id"])
+            media = self.media.find_by_id(user_id, row["media_id"])
             if media is not None:
                 item["media"] = self._media_dict(media)
         return item

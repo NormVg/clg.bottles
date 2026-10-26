@@ -1,23 +1,4 @@
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.utils.db import get_connection
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def clean_database():
-    connection = get_connection()
-    connection.execute("DELETE FROM items")
-    connection.execute("DELETE FROM folders")
-    connection.execute("DELETE FROM media")
-    connection.commit()
-    connection.close()
-
-
-def test_upload_creates_media_item_and_serves_bytes():
+def test_upload_creates_media_item_and_serves_bytes(client):
     client.post("/api/folders", json={"path": "/design"})
 
     response = client.post(
@@ -44,7 +25,7 @@ def test_upload_creates_media_item_and_serves_bytes():
     assert "attachment" in download.headers["content-disposition"]
 
 
-def test_delete_media_item_removes_the_media_row():
+def test_delete_media_item_removes_the_media_row(client):
     created = client.post(
         "/api/media",
         files={"file": ("note.txt", b"hello", "text/plain")},

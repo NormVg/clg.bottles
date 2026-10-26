@@ -2,6 +2,7 @@
 
 from ...utils.files import sanitize_filename
 from ...utils.paths import normalize_folder_path, parent_path_of, slugify_segment
+from ...utils.urls import default_title_for
 from .repository import FolderRepository, ItemRepository, MediaRepository
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -195,10 +196,3 @@ class BookmarkService:
             "size": row["size"],
             "created_at": row["created_at"],
         }
-
-
-def default_title_for(url: str) -> str:
-    """A link's title when the user gives none: the hostname, no www."""
-    without_scheme = url.split("://", 1)[-1]
-    host = without_scheme.split("/", 1)[0]
-    return host.replace("www.", "", 1) or url

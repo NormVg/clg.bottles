@@ -6,8 +6,9 @@ FastAPI + SQLite on the back, Vue 3 + TypeScript on the front.
 ## Structure
 
 - `backend/` - FastAPI app (Python 3.13), SQLite, plain SQL
+  - `app/modules/auth/` - signup, login, sessions
   - `app/modules/bookmarks/` - folders, items, uploads, search
-  - `app/utils/` - database, path, and filename helpers
+  - `app/utils/` - database, path, filename, and security helpers
   - `tests/` - pytest suite
   - `scripts/` - manual API check script
 - `frontend/` - Vue 3 + TypeScript on Vite (pnpm)
@@ -56,6 +57,8 @@ cd frontend && pnpm build
 
 ## What it does
 
+- accounts: sign up with a name, email, and password; each account has its own shelf
+- landing: a quiet home screen before you sign in
 - folders: a tree addressed by path (`/design/inspo`), created on the fly
 - links: saved with a url, titled from the hostname unless you give one
 - notes: a title and a body, expandable in the list
@@ -67,6 +70,10 @@ cd frontend && pnpm build
 
 | Method | Path | What it does |
 | --- | --- | --- |
+| POST | `/api/auth/signup` | create an account |
+| POST | `/api/auth/login` | sign in |
+| POST | `/api/auth/logout` | sign out |
+| GET | `/api/auth/me` | the signed-in user |
 | GET | `/api/fs?path=/` | list a folder |
 | GET | `/api/folders` | every folder, path-ordered |
 | POST | `/api/folders` | create a folder path |
@@ -82,6 +89,10 @@ cd frontend && pnpm build
 
 ## Storage
 
-Everything lives in `backend/app.db`: folders, items, and the uploaded file
-bytes. There is no external storage and no uploads folder. The database file
-is gitignored.
+Everything lives in `backend/app.db`: users, sessions, folders, items, and the
+uploaded file bytes. There is no external storage and no uploads folder. The
+database file is gitignored.
+
+Bookmark routes need a session; the browser sends the `session_token` cookie
+automatically. Passwords are hashed with PBKDF2 from the Python standard
+library.

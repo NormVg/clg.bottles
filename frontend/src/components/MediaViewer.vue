@@ -18,6 +18,7 @@ const { push } = useToast()
 
 const media = computed(() => props.item.media)
 const isImage = computed(() => (media.value?.mime_type ?? '').startsWith('image/'))
+const isVideo = computed(() => (media.value?.mime_type ?? '').startsWith('video/'))
 const rawUrl = computed(() => (media.value ? `/api/media/${media.value.id}/raw` : null))
 const downloadUrl = computed(() => (media.value ? `/api/media/${media.value.id}/download` : null))
 
@@ -38,8 +39,20 @@ function download() {
   <div class="viewer">
     <p v-if="!media" class="viewer__missing" role="alert">could not load the file.</p>
 
-    <figure v-else-if="isImage" class="viewer__figure">
-      <img class="viewer__image" :src="rawUrl ?? undefined" :alt="props.item.title" />
+    <figure v-else-if="isImage || isVideo" class="viewer__figure">
+      <img
+        v-if="isImage"
+        class="viewer__image"
+        :src="rawUrl ?? undefined"
+        :alt="props.item.title"
+      />
+      <video
+        v-else
+        class="viewer__video"
+        :src="rawUrl ?? undefined"
+        controls
+        playsinline
+      ></video>
       <figcaption class="viewer__meta">
         {{ media.filename }} · {{ formatBytes(media.size) }}
       </figcaption>
@@ -83,6 +96,14 @@ function download() {
   max-height: 60vh;
   border-radius: var(--radius-md);
   object-fit: contain;
+}
+
+.viewer__video {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: var(--radius-md);
+  background: #000;
 }
 
 .viewer__meta {

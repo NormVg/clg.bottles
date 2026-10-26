@@ -52,6 +52,8 @@ explain a line, rewrite that line.
         vite.config.ts     # dev proxy: /api -> http://127.0.0.1:8000
 
 The SQLite database file is `backend/app.db`. It is gitignored; never commit it.
+Uploaded files are stored as BLOBs in that same database. There is no external
+storage and no uploads folder.
 
 ## Commands
 

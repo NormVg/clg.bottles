@@ -1,4 +1,11 @@
-import type { ApiDirectory, ApiFolder, ApiItem, ApiMedia, ApiSearchResult } from './types'
+import type {
+  ApiDirectory,
+  ApiFolder,
+  ApiItem,
+  ApiMedia,
+  ApiSearchResult,
+  ApiUser,
+} from './types'
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -16,6 +23,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  me(): Promise<ApiUser> {
+    return request('/auth/me')
+  },
+
+  signup(input: { name: string; email: string; password: string }): Promise<ApiUser> {
+    return request('/auth/signup', { method: 'POST', body: JSON.stringify(input) })
+  },
+
+  login(input: { email: string; password: string }): Promise<ApiUser> {
+    return request('/auth/login', { method: 'POST', body: JSON.stringify(input) })
+  },
+
+  logout(): Promise<void> {
+    return request('/auth/logout', { method: 'POST' })
+  },
+
   directory(path: string): Promise<ApiDirectory> {
     return request(`/fs?path=${encodeURIComponent(path)}`)
   },

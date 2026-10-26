@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AccountMenu from './AccountMenu.vue'
+
 const emit = defineEmits<{
   'add-link': []
   'add-note': []
@@ -12,7 +14,7 @@ const emit = defineEmits<{
   <Teleport to="body">
     <footer class="footer">
       <div class="footer__side">
-        <span class="footer__space">bookmarks</span>
+        <AccountMenu />
       </div>
       <nav class="footer__utils" aria-label="actions">
         <button class="footer__util" type="button" @click="emit('add-link')">
@@ -59,12 +61,6 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.footer__space {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  padding: 4px 1px;
 }
 
 .footer__utils {

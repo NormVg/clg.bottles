@@ -1,5 +1,12 @@
 export type ItemType = 'link' | 'note' | 'media'
 
+export interface ApiUser {
+  id: number
+  name: string
+  email: string
+  created_at: string
+}
+
 export interface ApiFolder {
   id: number
   parent_id: number | null

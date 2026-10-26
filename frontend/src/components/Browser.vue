@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
-import { useToast } from '../composables/useToast'
+import { useQuickCapture } from '../composables/useQuickCapture'
 import { useWindowDropZone } from '../composables/useWindowDropZone'
 import type { ApiDirectory, ApiItem } from '../types'
 import AddLink from './AddLink.vue'
+import AddNote from './AddNote.vue'
 import Breadcrumb from './Breadcrumb.vue'
 import DirectoryList from './DirectoryList.vue'
 import DropOverlay from './DropOverlay.vue'
@@ -17,16 +18,15 @@ import Upload from './Upload.vue'
 
 const path = defineModel<string>('path', { default: '/' })
 
-const { push } = useToast()
-
 const directory = ref<ApiDirectory | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
-const surface = ref<'list' | 'new-link' | 'upload' | 'new-folder' | 'media'>('list')
+const surface = ref<'list' | 'new-link' | 'new-note' | 'upload' | 'new-folder' | 'media'>('list')
 const mediaItem = ref<ApiItem | null>(null)
 const searchOpen = ref(false)
 
 const mediaTitle = computed(() => mediaItem.value?.title ?? 'file')
+const captureEnabled = computed(() => surface.value === 'list' && !searchOpen.value)
 
 async function refresh() {
   loading.value = true
@@ -58,17 +58,8 @@ function onSaved() {
   void refresh()
 }
 
-const { dragging } = useWindowDropZone(async (files) => {
-  for (const file of files) {
-    try {
-      await api.upload(file, path.value)
-    } catch (cause) {
-      push(cause instanceof Error ? cause.message : 'could not upload.', 'danger')
-    }
-  }
-  push('uploaded.')
-  void refresh()
-})
+const { captureFiles } = useQuickCapture(path, () => void refresh(), captureEnabled)
+const { dragging } = useWindowDropZone(captureFiles, captureEnabled)
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && surface.value !== 'list') {
@@ -77,12 +68,13 @@ function onKeydown(event: KeyboardEvent) {
   }
   if (searchOpen.value || surface.value !== 'list') return
   if (event.altKey || event.ctrlKey || event.metaKey) return
-  if (!/^[nuf/]$/.test(event.key)) return
+  if (!/^[ntuf/]$/.test(event.key)) return
   const target = event.target as HTMLElement
   if (target.closest('input, textarea')) return
   event.preventDefault()
   if (event.key === '/') searchOpen.value = true
   else if (event.key === 'n') surface.value = 'new-link'
+  else if (event.key === 't') surface.value = 'new-note'
   else if (event.key === 'u') surface.value = 'upload'
   else surface.value = 'new-folder'
 }
@@ -99,6 +91,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <div :key="surface" class="browser__canvas">
         <Surface v-if="surface === 'new-link'" title="new link" @close="surface = 'list'">
           <AddLink :path="path" @close="surface = 'list'" @saved="onSaved" />
+        </Surface>
+
+        <Surface v-else-if="surface === 'new-note'" title="new note" @close="surface = 'list'">
+          <AddNote :path="path" @close="surface = 'list'" @saved="onSaved" />
         </Surface>
 
         <Surface v-else-if="surface === 'upload'" title="upload" @close="surface = 'list'">
@@ -129,6 +125,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
     <Footer
       @add-link="surface = 'new-link'"
+      @add-note="surface = 'new-note'"
       @upload="surface = 'upload'"
       @new-folder="surface = 'new-folder'"
       @search="searchOpen = true"

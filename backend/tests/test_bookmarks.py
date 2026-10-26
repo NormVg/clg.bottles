@@ -81,6 +81,22 @@ def test_search_finds_items_and_folders():
     assert [folder["path"] for folder in folder_results["folders"]] == ["/design"]
 
 
+def test_create_note_keeps_title_and_body():
+    response = client.post(
+        "/api/items",
+        json={"type": "note", "title": "idea", "note": "the text to keep"},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["type"] == "note"
+    assert body["title"] == "idea"
+    assert body["note"] == "the text to keep"
+
+    listing = client.get("/api/fs").json()
+    assert listing["items"][0]["note"] == "the text to keep"
+
+
 def test_update_and_delete_item():
     created = client.post(
         "/api/items", json={"type": "note", "title": "idea", "note": "hello"}

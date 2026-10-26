@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const emit = defineEmits<{
   'add-link': []
+  'add-note': []
   upload: []
   'new-folder': []
   search: []
@@ -16,6 +17,10 @@ const emit = defineEmits<{
       <nav class="footer__utils" aria-label="actions">
         <button class="footer__util" type="button" @click="emit('add-link')">
           new link <kbd>n</kbd>
+        </button>
+        <span class="footer__dot" aria-hidden="true">·</span>
+        <button class="footer__util" type="button" @click="emit('add-note')">
+          new note <kbd>t</kbd>
         </button>
         <span class="footer__dot" aria-hidden="true">·</span>
         <button class="footer__util" type="button" @click="emit('upload')">
